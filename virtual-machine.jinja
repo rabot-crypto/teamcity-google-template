@@ -285,7 +285,7 @@ resources:
 {%- endraw %}
                 ExecStart=/usr/bin/docker run \
                   -v /mnt/data/teamcity-agent/conf:/opt/buildagent/conf \
-                  -v /mnt/data/teamcity-agent/logs:/opt/buildagent/logs \
+                  -v /mnt/data/teamcity-agent/logs:/opt/buildagent/logs:z \
                   -v /mnt/data/teamcity-agent/plugins:/opt/buildagent/plugins \
                   -v /mnt/data/teamcity-agent/system:/opt/buildagent/system \
                   -v /mnt/resource/teamcity-agent/temp:/opt/buildagent/temp \
@@ -396,7 +396,7 @@ resources:
 {%- if properties['enableHttps'] %}
                 ExecStartPre=/bin/bash /etc/teamcity/checkCertificate.sh
 {%- endif  %}
-                ExecStartPre=/bin/bash -c "until $(curl --output /dev/null --silent --fail {{ SERVER_URL }}); do echo 'Waiting for success response from {{ SERVER_URL }}'; sleep 10; done;"
+                ExecStartPre=/bin/bash -c 'until $(STATUS_CODE=$(curl --output /dev/null --silent --fail -w "%{http_code}" "{{ SERVER_URL }}") || [ "$STATUS_CODE" == "401" ]); do echo "Waiting for success response from {{ SERVER_URL }}"; sleep 5; done;'
                 ExecStart=/usr/bin/docker run --rm  -e "CLOUDSDK_CORE_DISABLE_PROMPTS=1" google/cloud-sdk:alpine gcloud beta runtime-config configs variables set success/{{ properties['waiter']['name'] }} success --config-name {{ properties['waiter']['config'] }}
                 ExecStartPost=/usr/bin/docker rmi google/cloud-sdk:alpine
                 ExecStartPost=/bin/touch /etc/teamcity/waiter
