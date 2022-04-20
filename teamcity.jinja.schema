@@ -17,7 +17,6 @@ imports:
 - path: network.jinja
 - path: service-account.jinja
 - path: storage.jinja
-- path: teamcity.jinja
 - path: virtual-machine.jinja
 - path: waiter.jinja
 
@@ -77,6 +76,11 @@ properties:
   domainOwnerEmail:
     type: string
     description: E-mail address of domain owner used while issuing SSL certificate for TeamCity server
+
+  deploymentSuffix:
+    type: string
+    description: Suffix that is appended to base name. Maximum length is four. The base name is used by each resource as part of their name.
+    default: ""
 
 outputs:
   teamcityUrl:

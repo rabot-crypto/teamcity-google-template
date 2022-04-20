@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 #}
 
-{% set BASE_NAME = env['deployment'][:40] %}
+{% set BASE_NAME = env['deployment'][:36] + properties['deploymentSuffix'][:4] %}
 
 {%- if not properties['domainName'] %}
   {%- set ENABLE_HTTPS = false %}
