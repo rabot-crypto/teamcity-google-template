@@ -383,33 +383,6 @@ resources:
 
                 [Install]
                 WantedBy=multi-user.target
-
-            - name: "report-waiter-status.service"
-              enable: true
-              command: "start"
-              content: |
-                [Unit]
-{%- if properties['enableHttps'] %}
-                Requires=docker.service teamcity-server.service {{ NGINX }}.service {{ LETSENCRYPT }}.service
-{%- else %}
-                Requires=docker.service teamcity-server.service
-{%- endif  %}
-                Before=teamcity-agent.service
-                ConditionPathExists=!/etc/teamcity/waiter
-
-                [Service]
-                Type=oneshot
-                EnvironmentFile=/run/metadata/coreos
-{%- if properties['enableHttps'] %}
-                #ExecStartPre=/bin/bash /etc/teamcity/checkCertificate.sh
-{%- endif  %}
-                ExecStartPre=/bin/bash -c 'until $(timeout 1 bash -c '</dev/tcp/{{ properties['domainName'] }}/80'); do echo "Waiting for success response from {{ SERVER_URL }}"; sleep 5; done;'
-                ExecStart=/usr/bin/docker run --rm  -e "CLOUDSDK_CORE_DISABLE_PROMPTS=1" google/cloud-sdk:alpine gcloud beta runtime-config configs variables set success/{{ properties['waiter']['name'] }} success --config-name {{ properties['waiter']['config'] }}
-                ExecStartPost=/usr/bin/docker rmi google/cloud-sdk:alpine
-                ExecStartPost=/bin/touch /etc/teamcity/waiter
-
-                [Install]
-                WantedBy=multi-user.target
     disks:
       - deviceName: boot
         type: PERSISTENT

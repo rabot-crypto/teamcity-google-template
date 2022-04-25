@@ -80,16 +80,6 @@ resources:
       instance: $(ref.database.instance)
       name: $(ref.database.name)
       user: $(ref.database.user)
-    waiter:
-      name: $(ref.waiter.name)
-      config: $(ref.waiter.config)
-
-- name: waiter
-  type: waiter.jinja
-  properties:
-    baseName: {{ BASE_NAME }}
-    ipAddress: $(ref.vm.ip)
-    enableHttps: {{ ENABLE_HTTPS }}
 
 outputs:
 - name: teamcityUrl
