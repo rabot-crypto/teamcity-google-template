@@ -39,7 +39,7 @@ properties:
   version:
     description: The version of TeamCity
     type: string
-    default: "2021.1"
+    default: "2020.1"
 
   installationSize:
     description: The size of installation
