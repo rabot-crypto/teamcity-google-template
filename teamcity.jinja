@@ -15,10 +15,10 @@ limitations under the License.
 
 {% set BASE_NAME = env['deployment'][:36] + properties['deploymentSuffix'][:4] %}
 
-{%- if not properties['domainName'] %}
-  {%- set ENABLE_HTTPS = false %}
-{%- else %}
+{%- if properties['domainName'] %}
   {%- set ENABLE_HTTPS = true %}
+{%- else %}
+  {%- set ENABLE_HTTPS = false %}
 {%- endif %}
 
 resources:
