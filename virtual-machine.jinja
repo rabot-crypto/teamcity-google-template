@@ -229,6 +229,82 @@ resources:
                 [Install]
                 WantedBy=multi-user.target
 
+{%- if properties['enableHttps'] %}
+            - name: "{{ NGINX }}-directories.service"
+              enable: true
+              content: |
+                [Unit]
+                Before={{ NGINX }}.service
+                After=mnt-data.mount docker.service
+                Requires=mnt-data.mount docker.service
+                ConditionPathExists=!/opt/domains/vhost.d/default
+
+                [Service]
+                Type=oneshot
+                ExecStart=/bin/mkdir -p /opt/domains/certs
+                ExecStart=/bin/mkdir -p /opt/domains/vhost.d
+                ExecStart=/bin/mkdir -p /opt/domains/nginx/html
+                ExecStart=/bin/sh -c "echo 'proxy_read_timeout     1200;' >> /opt/domains/vhost.d/default"
+                ExecStart=/bin/sh -c "echo 'proxy_connect_timeout  240;'  >> /opt/domains/vhost.d/default"
+                ExecStart=/bin/sh -c "echo 'client_max_body_size   0;'    >> /opt/domains/vhost.d/default"
+
+                [Install]
+                WantedBy=multi-user.target
+
+            - name: "{{ NGINX }}.service"
+              command: "start"
+              content: |
+                [Unit]
+                Description=NGINX reverse proxy
+                Requires=docker.service {{ NGINX }}-directories.service
+                After=docker.service {{ NGINX }}-directories.service
+
+                [Service]
+                TimeoutStartSec=1200s
+                ExecStart=/usr/bin/docker run \
+                  -p 80:80 \
+                  -p 443:443 \
+                  -v /opt/domains/certs:/etc/nginx/certs:ro \
+                  -v /opt/domains/vhost.d:/etc/nginx/vhost.d \
+                  -v /opt/domains/nginx/html:/usr/share/nginx/html \
+                  -v /var/run/docker.sock:/tmp/docker.sock:ro \
+                  --name {{ NGINX }} \
+                  {{ NGINX_IMAGE }}
+                  ExecStop=-/usr/bin/docker stop {{ NGINX }}
+                  ExecStopPost=-/usr/bin/docker rm {{ NGINX }}
+                Restart=always
+
+                [Install]
+                WantedBy=multi-user.target
+
+            - name: "{{ LETSENCRYPT }}.service"
+              command: "start"
+              content: |
+                [Unit]
+                Description=Let's Encrypt
+                Requires=docker.service {{ NGINX }}.service
+                After=docker.service {{ NGINX }}.service
+                Before=teamcity-server.service
+
+                [Service]
+                ExecStart=/usr/bin/docker run \
+                  -v /opt/domains/certs:/etc/nginx/certs:rw \
+                  --volumes-from {{ NGINX }} \
+                  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+                  --name {{ LETSENCRYPT }} \
+                  {{ LETSENCRYPT_IMAGE }}
+                ExecStop=-/usr/bin/docker stop {{ LETSENCRYPT }}
+                ExecStopPost=-/usr/bin/docker rm {{ LETSENCRYPT }}
+
+                Restart=always
+                RestartSec=5
+                # report-waiter-status.service depends on this service, so retry until you die :D
+                StartLimitInterval=0
+
+                [Install]
+                WantedBy=multi-user.target
+{%- endif %}
+
             - name: "teamcity-server.service"
               command: "start"
               content: |
@@ -307,78 +383,6 @@ resources:
 
                 [Install]
                 WantedBy=multi-user.target
-
-{%- if properties['enableHttps'] %}
-            - name: "{{ NGINX }}-directories.service"
-              enable: true
-              content: |
-                [Unit]
-                Before={{ NGINX }}.service
-                After=mnt-data.mount docker.service
-                Requires=mnt-data.mount docker.service
-                ConditionPathExists=!/opt/domains/vhost.d/default
-
-                [Service]
-                Type=oneshot
-                ExecStart=/bin/mkdir -p /opt/domains/certs
-                ExecStart=/bin/mkdir -p /opt/domains/vhost.d
-                ExecStart=/bin/mkdir -p /opt/domains/nginx/html
-                ExecStart=/bin/sh -c "echo 'proxy_read_timeout     1200;' >> /opt/domains/vhost.d/default"
-                ExecStart=/bin/sh -c "echo 'proxy_connect_timeout  240;'  >> /opt/domains/vhost.d/default"
-                ExecStart=/bin/sh -c "echo 'client_max_body_size   0;'    >> /opt/domains/vhost.d/default"
-
-                [Install]
-                WantedBy=multi-user.target
-
-            - name: "{{ NGINX }}.service"
-              command: "start"
-              content: |
-                [Unit]
-                Description=NGINX reverse proxy
-                Requires=docker.service {{ NGINX }}-directories.service
-
-                [Service]
-                TimeoutStartSec=1200s
-                ExecStart=/usr/bin/docker run \
-                  -p 80:80 \
-                  -p 443:443 \
-                  -v /opt/domains/certs:/etc/nginx/certs:ro \
-                  -v /opt/domains/vhost.d:/etc/nginx/vhost.d \
-                  -v /opt/domains/nginx/html:/usr/share/nginx/html \
-                  -v /var/run/docker.sock:/tmp/docker.sock:ro \
-                  --name {{ NGINX }} \
-                  {{ NGINX_IMAGE }}
-                  ExecStop=-/usr/bin/docker stop {{ NGINX }}
-                  ExecStopPost=-/usr/bin/docker rm {{ NGINX }}
-                Restart=always
-
-                [Install]
-                WantedBy=multi-user.target
-
-            - name: "{{ LETSENCRYPT }}.service"
-              command: "start"
-              content: |
-                [Unit]
-                Description=Let's Encrypt
-                Requires=docker.service
-                After={{ NGINX }}.service
-                Before=teamcity-server.service
-
-                [Service]
-                TimeoutStartSec=1200s
-                ExecStart=/usr/bin/docker run \
-                  -v /opt/domains/certs:/etc/nginx/certs:rw \
-                  --volumes-from {{ NGINX }} \
-                  -v /var/run/docker.sock:/var/run/docker.sock:ro \
-                  --name {{ LETSENCRYPT }} \
-                  {{ LETSENCRYPT_IMAGE }}
-                ExecStop=-/usr/bin/docker stop {{ LETSENCRYPT }}
-                ExecStopPost=-/usr/bin/docker rm {{ LETSENCRYPT }}
-                Restart=always
-
-                [Install]
-                WantedBy=multi-user.target
-{%- endif %}
 
             - name: "report-waiter-status.service"
               enable: true
